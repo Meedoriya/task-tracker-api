@@ -1,9 +1,9 @@
 package com.alibi.tasktracker.api.controllers;
 
+import com.alibi.tasktracker.api.controllers.helpers.ControllerHelper;
 import com.alibi.tasktracker.api.dto.AckDto;
 import com.alibi.tasktracker.api.dto.ProjectDto;
 import com.alibi.tasktracker.api.exceptions.BadRequestException;
-import com.alibi.tasktracker.api.exceptions.NotFoundException;
 import com.alibi.tasktracker.api.factories.ProjectDtoFactory;
 import com.alibi.tasktracker.store.entities.ProjectEntity;
 import com.alibi.tasktracker.store.repositories.ProjectRepository;
@@ -30,6 +30,8 @@ public class ProjectController {
 
     ProjectDtoFactory projectDtoFactory;
 
+    ControllerHelper controllerHelper;
+
     public static final String FETCH_PROJECT = "/api/projects";
     public static final String DELETE_PROJECT = "/api/projects/{project_id}";
     public static final String CREATE_OR_UPDATE_PROJECT = "/api/project";
@@ -43,12 +45,12 @@ public class ProjectController {
 
         Stream<ProjectEntity> projectStream = optionalPrefixName
                 .map(projectRepository::streamAllByNameStartsWithIgnoreCase)
-                .orElseGet(projectRepository::streamAll);
+                .orElseGet(projectRepository::streamAllBy);
 
         if (optionalPrefixName.isPresent()) {
             projectStream = projectRepository.streamAllByNameStartsWithIgnoreCase(optionalPrefixName.get());
         } else {
-            projectStream = projectRepository.streamAll();
+            projectStream = projectRepository.streamAllBy();
         }
 
         return projectStream
@@ -70,7 +72,7 @@ public class ProjectController {
         }
 
         final ProjectEntity project = optionalProjectId
-                .map(this::getProjectOrThrowException)
+                .map(controllerHelper::getProjectOrThrowException)
                 .orElseGet(() -> ProjectEntity.builder().build());
 
         optionalProjectName
@@ -96,18 +98,12 @@ public class ProjectController {
     @DeleteMapping(DELETE_PROJECT)
     public AckDto deleteProject(@PathVariable("project_id") Long projectId) {
 
-        getProjectOrThrowException(projectId);
+        controllerHelper.getProjectOrThrowException(projectId);
 
         projectRepository.deleteById(projectId);
 
         return AckDto.makeDefault(true);
     }
 
-    private ProjectEntity getProjectOrThrowException(@PathVariable("project_id") Long projectId) {
-        return projectRepository
-                .findById(projectId)
-                .orElseThrow(() -> new NotFoundException(
-                        String.format("We didn't find the project with id: " + projectId)));
-    }
 
 }
